@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field, PrivateAttr, validate_call
 import threading
 import time
 
-#  #
+#  Mavlink Wrapper #
 class MavlinkInterface(BaseModel):
     """
     Handles the low-level MAVLink communication bridge for Hardware-In-The-Loop (HIL) simulation.
@@ -104,7 +104,7 @@ class MavlinkInterface(BaseModel):
                 send.rc_inputs.rssi
             )
 
-        # --- HIL STATE / QUATERNION UPDATE ---
+        # --- HIL QUATERNION UPDATE ---
         if send.flag & HIL_SEND_UPDATE_FLAG.QUAT:
             self._vehicle.mav.hil_state_quaternion_send(
                 send.quat.time_usec, send.quat.attitude_quaternion,
@@ -158,7 +158,7 @@ class MavlinkInterface(BaseModel):
 
         return rec
 
-# Class #
+# PX4 Wrapper #
 class PX4:            
     """
     High-level controller for PX4 Autopilot interaction.
