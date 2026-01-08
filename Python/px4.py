@@ -181,7 +181,7 @@ class PX4:
 
         self._lock = threading.Lock()
         self._stop_event = threading.Event()
-        self._receiver_thread = None
+        self._receiver_thread: threading.Thread | None = None
         
     def __str__(self):
         status = "CONNECTED" if self._receiver_thread and self._receiver_thread.is_alive() else "DISCONNECTED"
@@ -207,6 +207,8 @@ class PX4:
                         self.state.heartbeat = new_data.heartbeat
                     if new_data.system_time:
                         self.state.system_time = new_data.system_time
+            else:
+                print(f"DEBUG:: Didn't recieve new data, returned {new_data}")
 
     def start(self):
         """

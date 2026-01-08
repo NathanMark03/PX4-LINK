@@ -5,6 +5,7 @@ from signals import *
 from pydantic import BaseModel, Field, PrivateAttr, validate_call
 import socket
 import struct
+import threading
 
 class Message(BaseModel):
     """
@@ -23,7 +24,8 @@ class Message(BaseModel):
     
     def __getitem__(self, index):
         return self.data_string[index]
-    
+
+# TODO generalize with these classes 
 class Command(Message):
     data_string: list[float] = Field(
         default_factory=lambda: [0.0] * NUM_ACTUATORS,
@@ -77,7 +79,7 @@ class UDPInterface(NetworkInterface):
             print(f"UDP Send error: {e}")
             return False
 
-    def read(self, buffer_size: int, timeout_duration: float) -> Message:
+    def read(self, buffer_size: int = 1024, timeout_duration: float = 2.0) -> Message:
         """
         Receives and unpacks a UDP packet into a list of floats.
 
@@ -145,6 +147,10 @@ class UDPInterface(NetworkInterface):
 
         print("UDP:: Handshake Verified!")
         return True
+
+    def disconnect(self):
+        self._send_socket.close()
+        self._rec_socket.close()
 
 class Translator: # TODO, improve wih iterator and hydration
     """
@@ -220,13 +226,71 @@ class Translator: # TODO, improve wih iterator and hydration
 
         return states, dcm
 
-        pass
-
-class Vehicle:
+class Plant:
     """
     Docstring for Plant
     """
-    pass
+    def __init__(self):
+        self.STATES: STATES = STATES()
+        self.DCM: DCM = DCM()
+
+        self.UDP: UDPInterface = UDPInterface()
+        self.connected = False
+
+        self._lock = threading.Lock()
+        self._stop_event = threading.Event()
+        self._receiver_thread: threading.Thread | None = None
+
+    def __str__(self):
+        status = "CONNECTED" if self.connected and self._receiver_thread and self._receiver_thread.is_alive() else "DISCONNECTED"
+        return f"<Plant: {self.UDP.HOST}:{self.UDP.REC_PORT} [{status}]>"
+        
+    def __repr__(self):
+        return self.__str__()
+
+    def _update_loop(self):
+        while not self._stop_event.is_set():
+            raw_data = self.UDP.read()
+
+            if raw_data == raw_data:
+                new_states, new_dcm = Translator.unpack(raw_data)
+
+                with self._lock:
+                    self.STATES = new_states
+                    self.DCM = new_dcm
+            else:
+                print(f"DEBUG:: Could not read from Plant, returned {raw_data}")
+
+    def start(self):
+        timeout_limit: int = 10
+        self.connected = self.UDP.connect(timeout_limit)
+
+        if self.connected:
+            self._stop_event.clear()
+            self._receiver_thread = threading.Thread(target=self._update_loop, daemon=True)
+            self._receiver_thread.start()
+            print("Plant: Update loop started.")
+        else:
+            print(f"DEBUG:: Plant failed to connect")
+
+    def stop(self):
+        self._stop_event.set()
+        if self._receiver_thread:
+            self._receiver_thread.join()
+        self.UDP.disconnect()
+
+    def get_data(self, send: HIL_ACTUATOR_CTL) -> tuple[STATES, DCM]:
+        if self.UDP.send(Translator.pack(send)):
+            print(f"DEBUG:: Sent {send}")
+        else:
+            print(f"DEBUG:: Failed to send {send}")
+
+        with self._lock:
+            return(
+                self.STATES,
+                self.DCM
+            )
+
 
 # main, for testing #
 def main():
