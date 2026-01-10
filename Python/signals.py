@@ -456,7 +456,21 @@ class DCM(BaseModel):
     # TODO, add from_list()
 
 
-# Communication Envelopes #
+# Vehicle Specific Containers
+
+
+class VEHICLE_COORDINATES(BaseModel):
+    lat_degE7: int = 0
+    lon_degE7: int = 0
+
+class VEHICLE_ALTITUDE(BaseModel):
+    alt_mm: int = 0
+
+class VEHICLE_POSITION(BaseModel):
+    coordinates: VEHICLE_COORDINATES = Field(default_factory=VEHICLE_COORDINATES)
+    altitude: VEHICLE_ALTITUDE = Field(default_factory=VEHICLE_ALTITUDE)
+
+# Communication Envelopes # 
 
 
 class HIL_SEND(BaseModel):
@@ -477,3 +491,9 @@ class HIL_REC(BaseModel):
     heartbeat: HIL_HEARTBEAT = Field(default_factory=HIL_HEARTBEAT)
     time: HIL_SYSTEM_TIME = Field(default_factory=HIL_SYSTEM_TIME)
     # TODO, add from_list()
+
+class HIL_VEHICLE_STATE(BaseModel):
+    """Outbounds data packet sent from vehicle to simulation bridge"""
+    states: STATES = Field(default_factory=STATES)
+    dcm: DCM = Field(default_factory=DCM)
+    pos: VEHICLE_POSITION = Field(default_factory=VEHICLE_POSITION)
