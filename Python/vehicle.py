@@ -325,7 +325,7 @@ class Plant:
                 self.DCM
             )
 
-
+# TODO, maybe put sensors insde vehicle class...
 class Vehicle:
     """
     Docstring for Vehicle
@@ -376,25 +376,26 @@ class Vehicle:
 
     def _update_altitude(self):
         # update altitude, Ze (m) altitude (mm)
-        self.pos.altitude += self.states.earth_frame_x.Ze * 1e3
+        self.pos.altitude = self._start_alt_mm - self.states.earth_frame_x.Ze * 1e3
 
     def _update_enviornment(self):
-        pass
+        # approx 1 in hg per 1000 ft #
+        self.env.pressure_inHg = self._start_pressure_inHg - self.states.earth_frame_x.Ze * 3.281 / 1000
+        # approx 6.5deg C change per 1000 meters #
+        self.env.temp_C = self._start_temp_degC + self.states.earth_frame_x.Ze * 6.5 / 1000 
 
     def get_vehicle_state(self, send: HIL_ACTUATOR_CTL) -> HIL_VEHICLE_STATE:
         self.states, self.dcm = self.plant.get_data(send)
 
         self._update_position()
-
         self._update_altitude()
-
         self._update_enviornment()
 
         return HIL_VEHICLE_STATE(
-            self.states,
-            self.dcm,
-            self.pos,
-            self.env
+            states=self.states,
+            dcm=self.dcm,
+            pos=self.pos,
+            env=self.env
         )
 
 # main, for testing #
